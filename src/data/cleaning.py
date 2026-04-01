@@ -363,3 +363,106 @@ def add_placeholder_flag(
     )
 
     return cleaned_df
+
+
+def parse_vote_data_column(
+    df: pd.DataFrame,
+    source_column: str = "vote_data",
+    output_column: str = "vote_data_list",
+) -> pd.DataFrame:
+    """
+    Parse the vote_data column from a string representation into a Python list.
+
+    The original source column is preserved, and a new parsed column is added.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe.
+    source_column : str, default="vote_data"
+        Name of the raw vote data column.
+    output_column : str, default="vote_data_list"
+        Name of the parsed output column.
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataframe with parsed vote data column added.
+    """
+    if source_column not in df.columns:
+        return df
+
+    def _parse_value(value):
+        if pd.isna(value):
+            return pd.NA
+
+        if isinstance(value, list):
+            return value
+
+        if not isinstance(value, str):
+            return pd.NA
+
+        value = value.strip()
+        if not value:
+            return pd.NA
+
+        try:
+            parsed = ast.literal_eval(value)
+            return parsed if isinstance(parsed, list) else pd.NA
+        except (ValueError, SyntaxError):
+            return pd.NA
+
+    cleaned_df = df.copy()
+    cleaned_df[output_column] = cleaned_df[source_column].apply(_parse_value)
+    return cleaned_df
+
+
+def expand_vote_data(
+    df: pd.DataFrame,
+    vote_data_column: str = "vote_data_list",
+) -> pd.DataFrame:
+    """
+    Expand parsed vote_data into one row per MP vote.
+
+    Session-level columns are repeated for each MP vote row.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Voting session dataframe with parsed vote data.
+    vote_data_column : str, default="vote_data_list"
+        Column containing parsed list-of-dicts vote data.
+
+    Returns
+    -------
+    pd.DataFrame
+        Long-format dataframe with one row per MP vote.
+    """
+    if vote_data_column not in df.columns:
+        return pd.DataFrame()
+
+    base_columns = [col for col in df.columns if col != vote_data_column]
+
+    records = []
+
+    for row in df.itertuples(index=False):
+        row_dict = row._asdict()
+        vote_items = row_dict.get(vote_data_column)
+
+        if not isinstance(vote_items, list):
+            continue
+
+        session_data = {col: row_dict[col] for col in base_columns}
+
+        for item in vote_items:
+            if not isinstance(item, dict):
+                continue
+
+            combined = session_data.copy()
+            combined.update(item)
+            records.append(combined)
+
+    if not records:
+        return pd.DataFrame()
+
+    return pd.DataFrame(records)
