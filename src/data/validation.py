@@ -13,9 +13,25 @@ from typing import Iterable
 import pandas as pd
 
 
+def _make_hashable(value):
+    """
+    Recursively convert nested Python objects into hashable equivalents.
+
+    Lists become tuples, and dictionaries become sorted tuples of key/value pairs.
+    """
+    if isinstance(value, list):
+        return tuple(_make_hashable(item) for item in value)
+
+    if isinstance(value, dict):
+        return tuple(sorted((key, _make_hashable(val)) for key, val in value.items()))
+
+    return value
+
+
 def make_dataframe_hashable(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Return a copy of the dataframe with list values converted to tuples.
+    Return a copy of the dataframe with nested unhashable values converted
+    into hashable equivalents.
 
     This is useful for operations like duplicated() that require hashable values.
     The original dataframe is not modified.
@@ -23,9 +39,7 @@ def make_dataframe_hashable(df: pd.DataFrame) -> pd.DataFrame:
     hashable_df = df.copy()
 
     for col in hashable_df.columns:
-        hashable_df[col] = hashable_df[col].apply(
-            lambda value: tuple(value) if isinstance(value, list) else value
-        )
+        hashable_df[col] = hashable_df[col].apply(_make_hashable)
 
     return hashable_df
 
