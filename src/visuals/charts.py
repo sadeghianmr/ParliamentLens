@@ -11,23 +11,20 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
+from config.theme import (
+    CHART_COLOR_SEQUENCE,
+    DEFAULT_CHART_HEIGHT,
+    PRIMARY_BAR_COLOR,
+    PRIMARY_LINE_COLOR,
+)
 
-DEFAULT_HEIGHT = 420
+
+DEFAULT_HEIGHT = DEFAULT_CHART_HEIGHT
 
 
 def _empty_figure(message: str = "No data available") -> go.Figure:
     """
     Return a simple placeholder figure when there is no data to plot.
-
-    Parameters
-    ----------
-    message : str, default="No data available"
-        Message shown in the figure.
-
-    Returns
-    -------
-    go.Figure
-        Plotly figure with a centered annotation.
     """
     fig = go.Figure()
     fig.add_annotation(
@@ -56,20 +53,6 @@ def _apply_standard_layout(
 ) -> go.Figure:
     """
     Apply a consistent layout style to a Plotly figure.
-
-    Parameters
-    ----------
-    fig : go.Figure
-        Input figure.
-    title : str
-        Figure title.
-    height : int, default=DEFAULT_HEIGHT
-        Figure height.
-
-    Returns
-    -------
-    go.Figure
-        Styled figure.
     """
     fig.update_layout(
         title=title,
@@ -77,7 +60,54 @@ def _apply_standard_layout(
         template="plotly_white",
         margin={"l": 20, "r": 20, "t": 60, "b": 20},
         title_x=0.0,
+        legend_title_text="",
     )
+    return fig
+
+
+def _prepare_color_argument(
+    df: pd.DataFrame,
+    color: str | None,
+    treat_color_as_category: bool = False,
+):
+    """
+    Prepare the Plotly color argument without copying the dataframe.
+
+    If treat_color_as_category is True, return a string version of the selected
+    column so Plotly uses a discrete legend even when the source column is numeric.
+    """
+    if color is None or color not in df.columns:
+        return None
+
+    if not treat_color_as_category:
+        return color
+
+    return df[color].astype(str).rename(color)
+
+
+def _validated_color_column(df: pd.DataFrame, color: str | None) -> str | None:
+    """
+    Return a valid color column name if it exists in the dataframe.
+    """
+    if color and color in df.columns:
+        return color
+    return None
+
+
+def _apply_axis_types(
+    fig: go.Figure,
+    treat_x_as_category: bool = False,
+    treat_y_as_category: bool = False,
+) -> go.Figure:
+    """
+    Force selected axes to behave as categorical axes.
+    """
+    if treat_x_as_category:
+        fig.update_xaxes(type="category")
+
+    if treat_y_as_category:
+        fig.update_yaxes(type="category")
+
     return fig
 
 
@@ -86,7 +116,12 @@ def plot_bar_chart(
     x: str,
     y: str,
     title: str,
+    color: str | None = None,
     height: int = DEFAULT_HEIGHT,
+    barmode: str = "group",
+    treat_x_as_category: bool = False,
+    treat_y_as_category: bool = False,
+    treat_color_as_category: bool = False,
 ) -> go.Figure:
     """
     Create a vertical bar chart.
@@ -101,8 +136,18 @@ def plot_bar_chart(
         Column for the y-axis.
     title : str
         Chart title.
+    color : str | None, default=None
+        Optional column used to color bars by unique values.
     height : int, default=DEFAULT_HEIGHT
         Figure height.
+    barmode : str, default="group"
+        Plotly bar mode. Common options are "group", "stack", and "relative".
+    treat_x_as_category : bool, default=False
+        Force the x-axis to behave as categorical.
+    treat_y_as_category : bool, default=False
+        Force the y-axis to behave as categorical.
+    treat_color_as_category : bool, default=False
+        Force the color grouping to behave as categorical, which can be helpful when the source column is numeric but should be treated as discrete groups.
 
     Returns
     -------
@@ -112,8 +157,30 @@ def plot_bar_chart(
     if df.empty or x not in df.columns or y not in df.columns:
         return _empty_figure()
 
-    fig = px.bar(df, x=x, y=y)
+    color = _prepare_color_argument(
+        df,
+        color=color,
+        treat_color_as_category=treat_color_as_category,
+    )
+
+    fig = px.bar(
+        df,
+        x=x,
+        y=y,
+        color=color,
+        barmode=barmode,
+        color_discrete_sequence=CHART_COLOR_SEQUENCE,
+    )
+
+    if color is None:
+        fig.update_traces(marker_color=PRIMARY_BAR_COLOR)
+
     fig = _apply_standard_layout(fig, title=title, height=height)
+    fig = _apply_axis_types(
+        fig,
+        treat_x_as_category=treat_x_as_category,
+        treat_y_as_category=treat_y_as_category,
+    )
     return fig
 
 
@@ -122,7 +189,12 @@ def plot_horizontal_bar_chart(
     x: str,
     y: str,
     title: str,
+    color: str | None = None,
     height: int = DEFAULT_HEIGHT,
+    barmode: str = "group",
+    treat_x_as_category: bool = False,
+    treat_y_as_category: bool = False,
+    treat_color_as_category: bool = False,
 ) -> go.Figure:
     """
     Create a horizontal bar chart.
@@ -137,9 +209,18 @@ def plot_horizontal_bar_chart(
         Column for the y-axis.
     title : str
         Chart title.
+    color : str | None, default=None
+        Optional column used to color bars by unique values.
     height : int, default=DEFAULT_HEIGHT
         Figure height.
-
+    barmode : str, default="group"
+        Plotly bar mode. Common options are "group", "stack", and "relative".
+    treat_x_as_category : bool, default=False
+        Force the x-axis to behave as categorical.
+    treat_y_as_category : bool, default=False
+        Force the y-axis to behave as categorical.
+    treat_color_as_category : bool, default=False
+        Force the color grouping to behave as categorical, which can be helpful when the source column is numeric but should be treated as discrete groups.
     Returns
     -------
     go.Figure
@@ -148,8 +229,31 @@ def plot_horizontal_bar_chart(
     if df.empty or x not in df.columns or y not in df.columns:
         return _empty_figure()
 
-    fig = px.bar(df, x=x, y=y, orientation="h")
+    color = _prepare_color_argument(
+        df,
+        color=color,
+        treat_color_as_category=treat_color_as_category,
+    )
+
+    fig = px.bar(
+        df,
+        x=x,
+        y=y,
+        color=color,
+        orientation="h",
+        barmode=barmode,
+        color_discrete_sequence=CHART_COLOR_SEQUENCE,
+    )
+
+    if color is None:
+        fig.update_traces(marker_color=PRIMARY_BAR_COLOR)
+
     fig = _apply_standard_layout(fig, title=title, height=height)
+    fig = _apply_axis_types(
+        fig,
+        treat_x_as_category=treat_x_as_category,
+        treat_y_as_category=treat_y_as_category,
+    )
     return fig
 
 
@@ -158,8 +262,12 @@ def plot_line_chart(
     x: str,
     y: str,
     title: str,
+    color: str | None = None,
     height: int = DEFAULT_HEIGHT,
-) -> go.Figure:
+    treat_x_as_category: bool = False,
+    treat_y_as_category: bool = False,
+    treat_color_as_category: bool = False,
+    ) -> go.Figure:
     """
     Create a line chart.
 
@@ -173,9 +281,16 @@ def plot_line_chart(
         Column for the y-axis.
     title : str
         Chart title.
+    color : str | None, default=None
+        Optional column used to split lines by unique values.
     height : int, default=DEFAULT_HEIGHT
         Figure height.
-
+    treat_x_as_category : bool, default=False
+        Force the x-axis to behave as categorical.
+    treat_y_as_category : bool, default=False
+        Force the y-axis to behave as categorical.
+    treat_color_as_category : bool, default=False
+        Force the color grouping to behave as categorical, which can be helpful when the source column is numeric but should be treated as discrete groups.
     Returns
     -------
     go.Figure
@@ -184,8 +299,30 @@ def plot_line_chart(
     if df.empty or x not in df.columns or y not in df.columns:
         return _empty_figure()
 
-    fig = px.line(df, x=x, y=y, markers=True)
+    color = _prepare_color_argument(
+        df,
+        color=color,
+        treat_color_as_category=treat_color_as_category,
+    )
+
+    fig = px.line(
+        df,
+        x=x,
+        y=y,
+        color=color,
+        markers=True,
+        color_discrete_sequence=CHART_COLOR_SEQUENCE,
+    )
+
+    if color is None:
+        fig.update_traces(line_color=PRIMARY_LINE_COLOR)
+
     fig = _apply_standard_layout(fig, title=title, height=height)
+    fig = _apply_axis_types(
+        fig,
+        treat_x_as_category=treat_x_as_category,
+        treat_y_as_category=treat_y_as_category,
+    )
     return fig
 
 
@@ -194,7 +331,12 @@ def plot_top_topics_chart(
     title: str,
     topic_column: str = "level_2_topic",
     count_column: str = "count",
+    color: str | None = None,
     height: int = DEFAULT_HEIGHT,
+    barmode: str = "group",
+    treat_x_as_category: bool = False,
+    treat_y_as_category: bool = False,
+    treat_color_as_category: bool = False,
 ) -> go.Figure:
     """
     Create a horizontal bar chart for top topics.
@@ -209,8 +351,16 @@ def plot_top_topics_chart(
         Topic label column.
     count_column : str, default="count"
         Topic count column.
+    color : str | None, default=None
+        Optional column used to color bars by unique values.
     height : int, default=DEFAULT_HEIGHT
         Figure height.
+    barmode : str, default="group"
+        Plotly bar mode. Common options are "group", "stack", and "relative".
+    treat_x_as_category : bool, default=False
+        Force the x-axis to behave as categorical.
+    treat_y_as_category : bool, default=False
+        Force the y-axis to behave as categorical.
 
     Returns
     -------
@@ -222,5 +372,10 @@ def plot_top_topics_chart(
         x=count_column,
         y=topic_column,
         title=title,
+        color=color,
         height=height,
+        barmode=barmode,
+        treat_x_as_category=treat_x_as_category,
+        treat_y_as_category=treat_y_as_category,
+        treat_color_as_category=treat_color_as_category,
     )
