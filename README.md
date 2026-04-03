@@ -20,6 +20,7 @@ This project is not just about creating charts. It is about building a reusable 
 - analyzing parliamentary discourse
 - tracking issue attention over time
 - comparing MPs and parties
+- exploring bill and voting behavior
 - preparing the foundation for NLP and search-based exploration later
 
 ## Why I Built This Project
@@ -71,6 +72,12 @@ There are currently two transcript versions:
 ### Voting Sessions
 Contains parliamentary voting-related records tied to legislative context.
 
+At the moment, the voting data is handled mainly at the session level, but it also contains nested MP-level vote data that can later support:
+- vote alignment analysis
+- abstention analysis
+- party cohesion analysis
+- MP-level voting profiles
+
 ### Supporting Reference Data
 Additional files include:
 - legislators
@@ -80,30 +87,31 @@ Additional files include:
 
 ## Current Direction
 
-The project is currently in the **foundation stage**.
+The project is currently moving from the **foundation stage** into the **first dashboard layer**.
 
 So far, I have focused on:
 - setting up the project structure
 - building reusable Python modules for loading and cleaning data
-- validating schemas and missing values
-- checking duplicate behavior
-- parsing time fields correctly
-- auditing text fields before making stronger cleaning assumptions
+- validating schemas, missing values, and duplicate behavior
+- parsing timestamps and list-like columns safely
+- handling nested voting payloads for later MP-level analysis
+- building the first overview feature layer
+- testing grouped outputs and chart behavior in notebooks
+- creating reusable Plotly chart helpers for the first dashboard page
 
-At this stage, the focus is on building a reliable base before feature engineering and dashboard development.
+At this stage, the focus is on turning the cleaned data pipeline into reusable dashboard components for the first Streamlit page.
 
 ## Planned Architecture
 
 The project is being built in two layers:
 
 ### 1. Streamlit
-Streamlit will be the main application layer and will contain:
-- overview dashboards
-- bills analysis
-- transcript analysis
-- topic analysis
-- MP and party pages
-- later, exploratory and search-style views
+Streamlit is the main application layer and is being built from the bottom up:
+- overview metrics
+- reusable chart helpers
+- first overview page
+- later bills, transcripts, topics, MPs, parties, and voting pages
+- later exploratory and search-style views
 
 ### 2. Power BI
 Power BI will be used later as a lightweight presentation layer for:
@@ -133,6 +141,17 @@ A few principles guide the project:
 - separate data logic from dashboard UI
 - build the project incrementally and transparently
 
+## What Is Implemented Right Now
+
+At the moment, the repository includes:
+- reusable data loading, cleaning, and validation modules
+- notebook-based data auditing
+- overview KPI and grouped summary feature functions
+- reusable Plotly chart helpers
+- testing notebooks for both features and charts
+
+The first Streamlit overview page is the next major step.
+
 ## Current Progress
 
 Completed so far:
@@ -142,6 +161,10 @@ Completed so far:
 - safe cleaning functions
 - validation helpers
 - initial data audit notebook
+- overview feature functions
+- reusable Plotly chart helpers
+- overview feature testing notebook
+- chart testing for grouped and colorized outputs
 
 ## TODO
 
@@ -152,21 +175,27 @@ Completed so far:
 - [x] Create initial cleaning utilities
 - [x] Create validation helpers
 - [x] Build first data audit notebook
+- [x] Parse list-like topic columns
+- [x] Add transcript party filtering for unwanted source noise
+- [x] Add support for nested voting payload parsing
 - [ ] Save cleaned master datasets to parquet
 - [ ] Add stronger duplicate investigation for transcript data
 - [ ] Finalize handling of placeholder text values
 - [ ] Decide how to handle procedural / low-information transcript text
+- [ ] Decide when to expand session-level voting data into MP-level vote records
 
 ### Feature Engineering
-- [ ] Create overview feature functions
+- [x] Create overview feature functions
 - [ ] Create bill-level summary features
 - [ ] Create transcript-level summary features
 - [ ] Create topic-level summary features
 - [ ] Create MP-level summary features
 - [ ] Create party-level summary features
+- [ ] Create voting-level summary features
 - [ ] Design metrics for sponsor activity and topic ownership
 
 ### Streamlit Dashboard
+- [x] Create reusable chart helpers for the overview page
 - [ ] Build overview page
 - [ ] Build bills page
 - [ ] Build transcripts page
@@ -184,6 +213,7 @@ Completed so far:
 - [ ] Analyze party cohesion and vote divergence
 - [ ] Explore topic ownership by MP
 - [ ] Link speech activity to bill and voting behavior
+- [ ] Explore MP-level voting analysis from nested vote session data
 
 ### NLP and Text Exploration
 - [ ] Profile procedural vs substantive transcript text
@@ -208,7 +238,7 @@ Completed so far:
 
 ## Repository Status
 
-This repository is currently an active work in progress. The foundation layer is being built first so later analysis and dashboard features can rest on a more reliable and explainable data pipeline.
+This repository is currently an active work in progress. The data foundation and first feature layer are in place, and the next step is to build the first Streamlit overview page on top of them.
 
 ## Author
 
