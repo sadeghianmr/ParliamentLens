@@ -62,7 +62,6 @@ def load_overview_data():
     )
     transcripts_clean = filter_transcript_parties(transcripts_clean)
 
-    # Voting is kept at the session level on this page.
     voting_clean = clean_dataframe_basic(
         voting_df,
         datetime_columns=["date"],
@@ -71,30 +70,107 @@ def load_overview_data():
     return bills_clean, transcripts_clean, voting_clean
 
 
-@st.cache_data(show_spinner=False)
-def build_overview_outputs():
+def get_filter_options(
+    bills_df,
+    transcripts_df,
+    voting_df,
+):
     """
-    Build overview KPIs and grouped summary tables.
+    Build sidebar filter options from the cleaned datasets.
+    """
+    parliament_values = set()
+
+    if "parliament" in bills_df.columns:
+        parliament_values.update(bills_df["parliament"].dropna().unique().tolist())
+
+    if "parliament" in transcripts_df.columns:
+        parliament_values.update(transcripts_df["parliament"].dropna().unique().tolist())
+
+    if "parliament" in voting_df.columns:
+        parliament_values.update(voting_df["parliament"].dropna().unique().tolist())
+
+    parliaments = sorted(parliament_values)
+
+    parties = []
+    if "party" in transcripts_df.columns:
+        parties = sorted(transcripts_df["party"].dropna().unique().tolist())
+
+    return parliaments, parties
+
+
+def apply_overview_filters(
+    bills_df,
+    transcripts_df,
+    voting_df,
+    selected_parliaments,
+    selected_parties,
+):
+    """
+    Apply sidebar filters to the overview datasets.
+
+    Parameters
+    ----------
+    bills_df : pd.DataFrame
+        Cleaned bills dataframe.
+    transcripts_df : pd.DataFrame
+        Cleaned transcript dataframe.
+    voting_df : pd.DataFrame
+        Cleaned voting dataframe.
+    selected_parliaments : list
+        Selected parliament values.
+    selected_parties : list
+        Selected party values.
 
     Returns
     -------
     tuple
-        Overview KPI dictionary and grouped summary tables.
+        Filtered bills, transcripts, and voting dataframes.
     """
-    bills_clean, transcripts_clean, voting_clean = load_overview_data()
+    if selected_parliaments:
+        if "parliament" in bills_df.columns:
+            bills_df = bills_df[bills_df["parliament"].isin(selected_parliaments)]
 
-    overview_kpis = get_overview_kpis(
-        bills_df=bills_clean,
-        transcripts_df=transcripts_clean,
-        voting_df=voting_clean,
+        if "parliament" in transcripts_df.columns:
+            transcripts_df = transcripts_df[transcripts_df["parliament"].isin(selected_parliaments)]
+
+        if "parliament" in voting_df.columns:
+            voting_df = voting_df[voting_df["parliament"].isin(selected_parliaments)]
+
+    if selected_parties and "party" in transcripts_df.columns:
+        transcripts_df = transcripts_df[transcripts_df["party"].isin(selected_parties)]
+
+    return bills_df, transcripts_df, voting_df
+
+
+def render_sidebar_filters(
+    bills_df,
+    transcripts_df,
+    voting_df,
+):
+    """
+    Render the sidebar filters and return the selected values.
+    """
+    st.sidebar.header("Filters")
+
+    parliaments, parties = get_filter_options(
+        bills_df=bills_df,
+        transcripts_df=transcripts_df,
+        voting_df=voting_df,
     )
 
-    overview_tables = get_overview_tables(
-        bills_df=bills_clean,
-        transcripts_df=transcripts_clean,
+    selected_parliaments = st.sidebar.multiselect(
+        "Parliament",
+        options=parliaments,
+        default=parliaments,
     )
 
-    return overview_kpis, overview_tables
+    selected_parties = st.sidebar.multiselect(
+        "Transcript party",
+        options=parties,
+        default=parties,
+    )
+
+    return selected_parliaments, selected_parties
 
 
 def render_kpi_row(kpis: dict) -> None:
@@ -125,7 +201,32 @@ def main() -> None:
     )
 
     with st.spinner("Loading overview data..."):
-        overview_kpis, overview_tables = build_overview_outputs()
+        bills_clean, transcripts_clean, voting_clean = load_overview_data()
+
+    selected_parliaments, selected_parties = render_sidebar_filters(
+        bills_df=bills_clean,
+        transcripts_df=transcripts_clean,
+        voting_df=voting_clean,
+    )
+
+    bills_filtered, transcripts_filtered, voting_filtered = apply_overview_filters(
+        bills_df=bills_clean,
+        transcripts_df=transcripts_clean,
+        voting_df=voting_clean,
+        selected_parliaments=selected_parliaments,
+        selected_parties=selected_parties,
+    )
+
+    overview_kpis = get_overview_kpis(
+        bills_df=bills_filtered,
+        transcripts_df=transcripts_filtered,
+        voting_df=voting_filtered,
+    )
+
+    overview_tables = get_overview_tables(
+        bills_df=bills_filtered,
+        transcripts_df=transcripts_filtered,
+    )
 
     st.subheader("Overview")
     render_kpi_row(overview_kpis)
